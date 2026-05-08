@@ -34,18 +34,18 @@
 
 ### 初始化 D1 表结构
 
-首次部署前，需要把 `sql/schema.sql` 导入 D1。**复制 SQL 时必须保留换行**：
+首次部署前，需要把表结构导入 D1。网页端推荐使用 `sql/schema-dashboard.sql`，它移除了 `--` 注释，更适合 Cloudflare D1 Console 粘贴执行。
 
-1. 在你自己的代码仓库中打开 `sql/schema.sql`。
+1. 在你自己的代码仓库中打开 `sql/schema-dashboard.sql`。
 2. 点击 GitHub/GitLab 文件页上的 **Raw**（原始文件）按钮。
 3. 在 Raw 页面中按 `Ctrl+A` / `Cmd+A` 全选，再复制全部 SQL 内容。
 4. 回到 Cloudflare Dashboard 的 D1 数据库详情页。
 5. 打开 **Console**（或 SQL 查询控制台）。
-6. 粘贴 Raw 页面复制的 SQL，并确认内容仍然是多行，而不是被压成一整行。
-7. 执行 SQL，看到执行成功后再继续部署 Worker。
+6. 粘贴 Raw 页面复制的 SQL 并执行。即使浏览器把内容压成一行，`sql/schema-dashboard.sql` 也不会因为 `--` 注释导致 SQL 被截断。
+7. 看到执行成功后再继续部署 Worker。
 
 > [!IMPORTANT]
-> 不要从网页预览、聊天窗口或 Markdown 渲染结果里复制被压缩成一行的 SQL。`sql/schema.sql` 里有 `--` 行注释；如果所有内容被压成以 `--` 开头的一整行，SQLite/D1 会把后面的 `CREATE TABLE ...` 全部当成注释，最终等同于“没有提交任何查询”，Cloudflare 可能报错：`The request is malformed: Requests without any query are not supported.`
+> 如果你改用 `sql/schema.sql`，必须从 Raw 页面复制并保留换行。`sql/schema.sql` 里有 `--` 行注释；如果内容被压成一整行，SQLite/D1 会把 `--` 后面的 SQL 当成注释，可能报 `Requests without any query are not supported` 或 `incomplete input: SQLITE_ERROR`。
 
 > [!NOTE]
 > 后续项目升级如果新增了 `migrations/*.sql`，网页端手动部署需要你按文件名顺序在 D1 Console 中手动执行新增迁移。执行迁移时同样建议从 Raw 页面复制，确保保留换行。生产环境更推荐使用 CLI 或 GitHub Actions 自动执行迁移。
@@ -243,7 +243,7 @@ JWT_REFRESH_SECRET
 
 ### 3. 页面能打开，但 API 报错或无法注册
 
-确认你已经在 D1 Console 执行过 `sql/schema.sql`。如果数据库为空，后端接口会因表不存在而失败。
+确认你已经在 D1 Console 执行过 `sql/schema-dashboard.sql`（或保留换行的 `sql/schema.sql`）。如果数据库为空，后端接口会因表不存在而失败。
 
 如果初始化 D1 时看到：
 
@@ -251,7 +251,15 @@ JWT_REFRESH_SECRET
 The request is malformed: Requests without any query are not supported.
 ```
 
-通常是复制 SQL 时丢失了换行，导致以 `--` 开头的注释把整段 SQL 都注释掉了。请回到 `sql/schema.sql` 的 **Raw** 页面重新复制，确认粘贴进 D1 Console 后仍然是多行，再执行。
+通常是复制 `sql/schema.sql` 时丢失了换行，导致以 `--` 开头的注释把整段 SQL 都注释掉了。请改用 `sql/schema-dashboard.sql` 的 **Raw** 页面重新复制，再执行。
+
+如果看到：
+
+```text
+incomplete input: SQLITE_ERROR
+```
+
+也通常是同一个原因：你粘贴的一整行 SQL 中包含内联 `--` 注释，例如 `password_salt TEXT, -- Salt ...`。SQLite 会把该行后半部分都当成注释，导致 `CREATE TABLE` 语句没有完整结束。解决方法同样是改用无注释的 `sql/schema-dashboard.sql`。
 
 ### 4. 自定义域名 404 或没有进入 Worker
 
