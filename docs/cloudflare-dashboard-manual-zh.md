@@ -261,18 +261,34 @@ incomplete input: SQLITE_ERROR
 
 也通常是同一个原因：你粘贴的一整行 SQL 中包含内联 `--` 注释，例如 `password_salt TEXT, -- Salt ...`。SQLite 会把该行后半部分都当成注释，导致 `CREATE TABLE` 语句没有完整结束。解决方法同样是改用无注释的 `sql/schema-dashboard.sql`。
 
-### 4. 自定义域名 404 或没有进入 Worker
+### 4. 部署日志里出现大量 `+ /locales/...`、`+ /app/...` 正常吗？
+
+正常。`wrangler deploy` 会把 `public/web-vault` 里的 Web Vault 静态文件作为 Workers Assets 上传，日志中类似下面的行表示正在新增/上传静态资源，不是报错：
+
+```text
++ /locales/ja/messages.json
++ /scripts/dropin.js
++ /app/vendor.xxxxx.js
+```
+
+你需要继续往后看日志结尾：只要最终出现部署成功的信息，Worker 就已经发布。如果日志最后没有成功信息，或停在资产上传阶段很久，再重点检查：
+
+- `scripts/cloudflare-dashboard-build.sh` 是否已经删除 `*.map` 文件。
+- Cloudflare 构建是否超时或被中断。
+- `public/web-vault` 是否确实由 Build command 下载生成，而不是提交了异常的大文件。
+
+### 5. 自定义域名 404 或没有进入 Worker
 
 检查 DNS 记录必须是 **Proxied**（橙色云朵），并确认 Worker Route 是 `vault.example.com/*`，不是只写 `vault.example.com`。
 
-### 5. 附件上传失败
+### 6. 附件上传失败
 
 确认至少有一个附件存储绑定可用：
 
 - KV：绑定名 `ATTACHMENTS_KV`。
 - R2：绑定名 `ATTACHMENTS_BUCKET`，bucket 名称与 `wrangler.toml` 一致。
 
-### 6. 后续怎么升级？
+### 7. 后续怎么升级？
 
 1. 将上游代码同步到你的 Fork。
 2. 检查是否新增 `migrations/*.sql`，如有，按文件名顺序在 D1 Console 执行。
