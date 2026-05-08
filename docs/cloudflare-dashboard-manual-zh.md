@@ -100,36 +100,27 @@ ATTACHMENTS_KV
 5. 选择要部署的分支，通常是 `main`。
 6. 项目名称填写 `warden-worker`（或与你 `wrangler.toml` 的 `name` 保持一致）。
 7. Root directory 保持仓库根目录（通常留空或 `/`）。
-8. 构建设置建议如下：
+8. 构建设置建议如下。Cloudflare 控制台的命令输入框有长度限制，不要把完整脚本直接粘进去；本仓库已提供短命令脚本。
 
-   **Build command：**
-
-   ```bash
-   set -e
-   if ! command -v cargo >/dev/null 2>&1; then
-     curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal
-     . "$HOME/.cargo/env"
-   fi
-   rustup target add wasm32-unknown-unknown
-
-   BW_WEB_VERSION="${BW_WEB_VERSION:-v2026.3.1}"
-   curl -L "https://github.com/dani-garcia/bw_web_builds/releases/download/${BW_WEB_VERSION}/bw_web_${BW_WEB_VERSION}.tar.gz" -o "bw_web_${BW_WEB_VERSION}.tar.gz"
-   mkdir -p public
-   tar -xzf "bw_web_${BW_WEB_VERSION}.tar.gz" -C public/
-   rm "bw_web_${BW_WEB_VERSION}.tar.gz"
-   find public/web-vault -type f -name '*.map' -delete
-   mkdir -p public/web-vault/css/
-   cp public/css/vaultwarden.css public/web-vault/css/ || true
-   ```
-
-   **Deploy command：**
+   **Build command / 构建命令：**
 
    ```bash
-   . "$HOME/.cargo/env" 2>/dev/null || true
-   npx wrangler deploy
+   bash scripts/cloudflare-dashboard-build.sh
    ```
 
-   说明：Cloudflare Workers Builds 的构建镜像默认包含 Node.js 等常用工具，但不一定预装 Rust；上面的 Build command 会先安装/启用 Rust 工具链和 `wasm32-unknown-unknown` target。`wrangler.toml` 中的 `[build]` 会在 `wrangler deploy` 时安装 `worker-build` 并编译 Rust/WASM；Build command 的后半段负责下载并准备 Web Vault 前端静态文件。
+   **Deploy command / 部署命令（如果界面有这个输入框）：**
+
+   ```bash
+   bash scripts/cloudflare-dashboard-deploy.sh
+   ```
+
+   如果你的 Cloudflare 界面和截图一样只有 **构建命令** 一个输入框，可以填下面这一行，让它先准备前端和 Rust 工具链，再执行部署：
+
+   ```bash
+   bash scripts/cloudflare-dashboard-build.sh && bash scripts/cloudflare-dashboard-deploy.sh
+   ```
+
+   说明：`scripts/cloudflare-dashboard-build.sh` 会安装/启用 Rust 工具链、添加 `wasm32-unknown-unknown` target，并下载 Web Vault 前端静态文件；`scripts/cloudflare-dashboard-deploy.sh` 会执行 `npx wrangler deploy`。`wrangler.toml` 中的 `[build]` 仍会在 `wrangler deploy` 时安装 `worker-build` 并编译 Rust/WASM。
 
 9. 打开 **Build variables and secrets**，新增构建变量：
 
@@ -145,6 +136,7 @@ ATTACHMENTS_KV
     - `D1_DATABASE_ID` 是否填错。
     - D1 数据库是否已经创建。
     - Web Vault 下载链接是否能访问。
+    - 是否误把长脚本粘到 Cloudflare 的命令输入框；如果提示“构建命令的长度必须在 512 个字符以内”，请改用 `bash scripts/cloudflare-dashboard-build.sh` 或上面的合并短命令。
 
 ## 六、部署后配置运行时变量和密钥
 
@@ -161,14 +153,34 @@ Worker 部署成功后，还必须配置运行时变量/密钥，否则服务会
    | `JWT_REFRESH_SECRET` | Secret | 随机长字符串 | 是 | 刷新令牌签名密钥。 |
    | `BASE_URL` | Text | `https://vault.example.com` | 否 | 推荐绑定自定义域名后填写，不要带末尾 `/`。 |
    | `DISABLE_USER_REGISTRATION` | Text | `false` | 否 | 如果想在前端显示创建账号按钮，可设为 `false`。 |
-   | `PUSH_ENABLED` | Text | `true` | 否 | 启用移动端推送时使用。 |
-   | `PUSH_INSTALLATION_ID` | Secret | Bitwarden 提供 | 否 | 移动端推送安装 ID。 |
-   | `PUSH_INSTALLATION_KEY` | Secret | Bitwarden 提供 | 否 | 移动端推送安装 Key。 |
+   | `PUSH_ENABLED` | Text | `true` | 否 | 仅在你要启用 Bitwarden 官方移动端推送时设置。 |
+   | `PUSH_INSTALLATION_ID` | Secret | Bitwarden 提供 | 否 | 仅当 `PUSH_ENABLED=true` 时才需要。 |
+   | `PUSH_INSTALLATION_KEY` | Secret | Bitwarden 提供 | 否 | 仅当 `PUSH_ENABLED=true` 时才需要。 |
 
 4. 保存时选择 **Deploy**，让变量生效。
 
 > [!IMPORTANT]
 > `ALLOWED_EMAILS`、`JWT_SECRET`、`JWT_REFRESH_SECRET` 是生产环境必需配置。敏感值请使用 `Secret` 类型，不要明文写入仓库。
+
+### 不设置移动端推送变量有什么影响？
+
+如果你不需要 Bitwarden 官方移动端 App 的系统级推送通知，**建议不要设置** `PUSH_ENABLED`、`PUSH_INSTALLATION_ID`、`PUSH_INSTALLATION_KEY`。不设置它们时：
+
+- Web Vault、浏览器扩展、桌面端的登录、解锁、同步和附件等核心功能不受影响。
+- WebSocket 实时同步仍由 `NOTIFY_DO` Durable Object 负责，和这两个 Bitwarden 推送密钥不是同一套机制。
+- 手机 App 不会收到后台推送通知；通常需要打开 App、手动同步，或等待客户端自己的轮询/下次启动同步。
+- 不会影响数据库安全，也不会影响密码库数据的加密/解密。
+
+只有当你明确要启用官方移动端推送时，才同时设置：
+
+```text
+PUSH_ENABLED=true
+PUSH_INSTALLATION_ID=<从 Bitwarden self-host 页面获取>
+PUSH_INSTALLATION_KEY=<从 Bitwarden self-host 页面获取>
+```
+
+> [!WARNING]
+> 不要只设置 `PUSH_ENABLED=true` 而漏掉 `PUSH_INSTALLATION_ID` 或 `PUSH_INSTALLATION_KEY`。代码会把这种状态视为配置错误：移动端注册/更新推送 token 时可能返回服务端错误，通知发送也会跳过并在日志中记录错误。
 
 ## 七、绑定自定义域名（推荐）
 
