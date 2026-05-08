@@ -101,7 +101,7 @@ crons = ["0 3 * * *"]
 [[d1_databases]]
 binding = "vault1"
 database_name = "vault1"
-database_id = "${D1_DATABASE_ID}"
+database_id = "0ba67399-fe7b-4ab4-b946-2afdcd85891e"
 migrations_dir = "migrations"
 
 [env.dev]
