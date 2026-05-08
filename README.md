@@ -80,7 +80,7 @@ It's highly recommended to deploy your own instance since the demo can hit the r
 
 ## Getting Started
 
-- Choose a deployment path: [CLI Deployment](docs/deployment.md#cli-deployment) or [Github Actions Deployment](docs/deployment.md#cicd-deployment-with-github-actions).
+- Choose a deployment path: [CLI Deployment](docs/deployment.md#cli-deployment), [Github Actions Deployment](docs/deployment.md#cicd-deployment-with-github-actions), or the Chinese [Cloudflare dashboard manual deployment guide](docs/cloudflare-dashboard-manual-zh.md).
 - Set secrets and optional attachments per the deployment doc.
 - Configure Bitwarden clients to point at your worker URL.
 

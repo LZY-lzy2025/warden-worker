@@ -1,6 +1,6 @@
 # Deployment
 
-This page covers the two deployment paths. Pick the one that fits your workflow and infrastructure.
+This page covers the main deployment paths. Pick the one that fits your workflow and infrastructure. For a Chinese, dashboard-driven walkthrough, see [Cloudflare 网页端手动部署教程](cloudflare-dashboard-manual-zh.md).
 
 ## CLI Deployment
 
