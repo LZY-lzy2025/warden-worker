@@ -34,16 +34,21 @@
 
 ### 初始化 D1 表结构
 
-首次部署前，需要把 `sql/schema.sql` 导入 D1：
+首次部署前，需要把 `sql/schema.sql` 导入 D1。**复制 SQL 时必须保留换行**：
 
-1. 在你自己的代码仓库中打开 `sql/schema.sql`，复制全部 SQL 内容。
-2. 回到 Cloudflare Dashboard 的 D1 数据库详情页。
-3. 打开 **Console**（或 SQL 查询控制台）。
-4. 粘贴 `sql/schema.sql` 的全部内容并执行。
-5. 看到执行成功后再继续部署 Worker。
+1. 在你自己的代码仓库中打开 `sql/schema.sql`。
+2. 点击 GitHub/GitLab 文件页上的 **Raw**（原始文件）按钮。
+3. 在 Raw 页面中按 `Ctrl+A` / `Cmd+A` 全选，再复制全部 SQL 内容。
+4. 回到 Cloudflare Dashboard 的 D1 数据库详情页。
+5. 打开 **Console**（或 SQL 查询控制台）。
+6. 粘贴 Raw 页面复制的 SQL，并确认内容仍然是多行，而不是被压成一整行。
+7. 执行 SQL，看到执行成功后再继续部署 Worker。
+
+> [!IMPORTANT]
+> 不要从网页预览、聊天窗口或 Markdown 渲染结果里复制被压缩成一行的 SQL。`sql/schema.sql` 里有 `--` 行注释；如果所有内容被压成以 `--` 开头的一整行，SQLite/D1 会把后面的 `CREATE TABLE ...` 全部当成注释，最终等同于“没有提交任何查询”，Cloudflare 可能报错：`The request is malformed: Requests without any query are not supported.`
 
 > [!NOTE]
-> 后续项目升级如果新增了 `migrations/*.sql`，网页端手动部署需要你按文件名顺序在 D1 Console 中手动执行新增迁移。生产环境更推荐使用 CLI 或 GitHub Actions 自动执行迁移。
+> 后续项目升级如果新增了 `migrations/*.sql`，网页端手动部署需要你按文件名顺序在 D1 Console 中手动执行新增迁移。执行迁移时同样建议从 Raw 页面复制，确保保留换行。生产环境更推荐使用 CLI 或 GitHub Actions 自动执行迁移。
 
 ## 四、可选：创建附件存储
 
@@ -239,6 +244,14 @@ JWT_REFRESH_SECRET
 ### 3. 页面能打开，但 API 报错或无法注册
 
 确认你已经在 D1 Console 执行过 `sql/schema.sql`。如果数据库为空，后端接口会因表不存在而失败。
+
+如果初始化 D1 时看到：
+
+```text
+The request is malformed: Requests without any query are not supported.
+```
+
+通常是复制 SQL 时丢失了换行，导致以 `--` 开头的注释把整段 SQL 都注释掉了。请回到 `sql/schema.sql` 的 **Raw** 页面重新复制，确认粘贴进 D1 Console 后仍然是多行，再执行。
 
 ### 4. 自定义域名 404 或没有进入 Worker
 
