@@ -173,7 +173,28 @@ export default {
 
     // Pass all other requests to Rust WASM (streaming routes are intercepted in Rust)
     const worker = new RustWorker(ctx, env);
-    return worker.fetch(request);
+    const response = await worker.fetch(request);
+
+    // Inject lightweight UI enhancement script for Web Vault pages.
+    const contentType = response.headers.get("content-type") || "";
+    if (method === "GET" && contentType.includes("text/html")) {
+      const html = await response.text();
+      const injected = html.includes("/qr-totp-scan.js")
+        ? html
+        : html.replace(
+            "</body>",
+            '<script defer src="/qr-totp-scan.js"></script></body>',
+          );
+      const headers = new Headers(response.headers);
+      headers.delete("content-length");
+      return new Response(injected, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      });
+    }
+
+    return response;
   },
 
   async scheduled(event, env, ctx) {
