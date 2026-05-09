@@ -1,4 +1,5 @@
 use axum::{extract::State, Json};
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use serde_json::Value;
 use std::sync::Arc;
 use worker::{query, Env};
@@ -98,9 +99,19 @@ pub async fn get_authenticator(
         None => (false, generate_totp_secret()?),
     };
 
+    let issuer = "Warden";
+    let label = format!("{issuer}:{}", user.email);
+    let otpauth_uri = format!(
+        "otpauth://totp/{}?secret={}&issuer={}",
+        utf8_percent_encode(&label, NON_ALPHANUMERIC),
+        key,
+        utf8_percent_encode(issuer, NON_ALPHANUMERIC),
+    );
+
     Ok(Json(serde_json::json!({
         "enabled": enabled,
         "key": key,
+        "otpauth": otpauth_uri,
         "object": "twoFactorAuthenticator"
     })))
 }
